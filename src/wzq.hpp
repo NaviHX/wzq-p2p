@@ -15,25 +15,29 @@ private:
 public:
     int getCurseX() { return curseX; }
     int getCurseY() { return curseY; }
-    void moveUp()
+    int moveUp()
     {
         if (curseY > 0)
-            curseY--;
+            return --curseY;
+        return -1;
     }
-    void moveDown()
+    int moveDown()
     {
         if (curseY < 14)
-            curseY++;
+            return ++curseY;
+        return -1;
     }
-    void moveRight()
+    int moveRight()
     {
         if (curseX < 14)
-            curseX++;
+            return ++curseX;
+        return -1;
     }
-    void moveLeft()
+    int moveLeft()
     {
         if (curseX > 0)
-            curseX--;
+            return --curseX;
+        return -1;
     }
     int place(int x, int y, int color)
     {
@@ -76,7 +80,7 @@ public:
 public:
     wzq()
     {
-        curseX = 7, curseY = 7;
+        curseX = 0, curseY = 0;
         memset(map, 0, sizeof(int));
     }
     ~wzq() = default;
