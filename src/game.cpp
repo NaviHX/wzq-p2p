@@ -16,6 +16,8 @@ int color; // 1/B or 2/W
 int xloc, yloc;
 int socket_fd;
 
+pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
+
 char getch()
 {
     struct termios oldt, newt;
@@ -72,87 +74,141 @@ int connectGame(const char *ip)
     myaddr.sin_port = htons(12000);
     connect(client_fd, (sockaddr *)&myaddr, sizeof(myaddr));
     socket_fd = client_fd;
+
+    initMap();
     work();
+    return 0;
 }
 void *keyBoardListener(void *p)
 {
-    int key = getch();
-    int color = _wzq.getMap(_wzq.getCurseX(), _wzq.getCurseY());
-    switch (key)
+    while (1)
     {
-    case 'a':
-        if (_wzq.moveLeft() != -1)
-            printf("\e[1D");
-        break;
-    case 's':
-        if (_wzq.moveDown() != -1)
-            printf("\e[1B");
-        break;
-    case 'd':
-        if (_wzq.moveRight() != -1)
-            printf("\e[1C");
-        break;
-    case 'w':
-        if (_wzq.moveUp() != -1)
-            printf("\e[1A");
-        break;
-    case 'f':
-        // 记录位置
-        xloc = _wzq.getCurseX();
-        yloc = _wzq.getCurseY();
-        // 更改状态
-        status = (status == 1 ? 2 : 1);
-        break;
-    default:
-        break;
+        int key = getch();
+        int mapColor = _wzq.getMap(_wzq.getCurseX(), _wzq.getCurseY());
+        switch (key)
+        {
+        case 'a':
+            if (_wzq.moveLeft() != -1)
+                drawMap();
+            break;
+        case 's':
+            if (_wzq.moveDown() != -1)
+                drawMap();
+            break;
+        case 'd':
+            if (_wzq.moveRight() != -1)
+                drawMap();
+            break;
+        case 'w':
+            if (_wzq.moveUp() != -1)
+                drawMap();
+            break;
+        case 'f':
+            if (status == color)
+            {
+                // 记录位置
+                xloc = _wzq.getCurseX();
+                yloc = _wzq.getCurseY();
+                // 更改状态
+                status = (status == 1 ? 2 : 1);
+            }
+            break;
+        default:
+            break;
+        }
     }
 }
 void initMap()
 {
-    printf("\ec"); //清屏
-    printf("+---------------+\n"); // 1
-    printf("|               |\n"); // 2
-    printf("|               |\n"); // 3
-    printf("|               |\n"); // 4
-    printf("|               |\n"); // 5
-    printf("|               |\n"); // 6
-    printf("|               |\n"); // 7
-    printf("|               |\n"); // 8
-    printf("|               |\n"); // 9
-    printf("|               |\n"); // 10
-    printf("|               |\n"); // 11
-    printf("|               |\n"); // 12
-    printf("|               |\n"); // 13
-    printf("|               |\n"); // 14
-    printf("|               |\n"); // 15
-    printf("|               |\n"); // 16
-    printf("+---------------+\n"); // 17
-    printf("\nPress \"WASD\" to move cursor.\n"); // 19
-    printf("Press \"F\" to place piece\n"); // 20
-    printf("\e[2;2H");
+    printf("\ec\e[?25h");                       //清屏,隐藏光标
+    printf("+---------------+\n");              // 1
+    printf("|               |\n");              // 2
+    printf("|               |\n");              // 3
+    printf("|               |\n");              // 4
+    printf("|               |\n");              // 5
+    printf("|               |\n");              // 6
+    printf("|               |\n");              // 7
+    printf("|               |\n");              // 8
+    printf("|               |\n");              // 9
+    printf("|               |\n");              // 10
+    printf("|               |\n");              // 11
+    printf("|               |\n");              // 12
+    printf("|               |\n");              // 13
+    printf("|               |\n");              // 14
+    printf("|               |\n");              // 15
+    printf("|               |\n");              // 16
+    printf("+---------------+\n");              // 17
+    printf("NOW : \n");                         // 18
+    printf("Press \"WASD\" to move cursor.\n"); // 19
+    printf("Press \"F\" to place piece\n");     // 20
+}
+void drawMap()
+{
+    pthread_mutex_lock(&mut);
+    for (int i = 0; i < 15; i++)
+    {
+        printf("\e[%d;2H", i + 2);
+        for (int j = 0; j < 15; j++)
+        {
+            if (i == _wzq.getCurseY() && j == _wzq.getCurseX())
+            {
+                printf("x");
+                continue;
+            }
+            int mapColor = _wzq.getMap(j, i);
+            if (mapColor == 0)
+                printf(" ");
+            else if (mapColor == 1)
+                printf("@");
+            else if (mapColor == 2)
+                printf("O");
+        }
+    }
+    printf("\e[18;6H");
+    printf("%s", (status == color ? "YOU  " : "ENEMY"));
+    pthread_mutex_unlock(&mut);
 }
 void work()
 {
+    drawMap();
     pthread_t pid;
     pthread_create(&pid, NULL, keyBoardListener, NULL);
     while (status != 0)
     {
         char buf[16];
+        int temp;
         if (status == color)
         {
             while (status == color)
             {
                 // loop until press 'f'
             }
-            // 落子
+            _wzq.place(xloc, yloc, color);
+            drawMap();
+            temp = buf[0] = color;
+            buf[1] = xloc;
+            buf[2] = yloc;
             // 发送报文
-            
+            write(socket_fd, buf, 3);
         }
         else
         {
             // 接受报文
+            recv(socket_fd, buf, 3, 0);
+            temp = buf[0];
+            xloc = buf[1];
+            yloc = buf[2];
             // 落子
+            _wzq.place(xloc, yloc, temp);
+            drawMap();
+            status = color;
         }
-        // 检查棋盘
+        int ret = _wzq.checkMap(buf[1], buf[2], temp);
+        if (ret)
+        {
+            printf("\e[21;1H");
+            printf("%s WIN!\n",(temp==color?"YOU":"ENEMY"));
+            status=0;
+        }
     }
 }
