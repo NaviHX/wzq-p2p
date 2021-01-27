@@ -112,6 +112,7 @@ void *keyBoardListener(void *p)
             }
             break;
         case 'q':
+            printf("\e[?25h");
             exit(0);
             break;
         default:
@@ -218,4 +219,5 @@ void work()
             status=0;
         }
     }
+    printf("\e[?25h");
 }
