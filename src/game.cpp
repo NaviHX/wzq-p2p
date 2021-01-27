@@ -88,20 +88,16 @@ void *keyBoardListener(void *p)
         switch (key)
         {
         case 'a':
-            if (_wzq.moveLeft() != -1)
-                drawMap();
+            if (_wzq.moveLeft() != -1);
             break;
         case 's':
-            if (_wzq.moveDown() != -1)
-                drawMap();
+            if (_wzq.moveDown() != -1);
             break;
         case 'd':
-            if (_wzq.moveRight() != -1)
-                drawMap();
+            if (_wzq.moveRight() != -1);
             break;
         case 'w':
-            if (_wzq.moveUp() != -1)
-                drawMap();
+            if (_wzq.moveUp() != -1);
             break;
         case 'f':
             if (status == color)
@@ -120,7 +116,7 @@ void *keyBoardListener(void *p)
 }
 void initMap()
 {
-    printf("\ec\e[?25h");                       //清屏,隐藏光标
+    printf("\ec\e[?25l");                       //清屏,隐藏光标
     printf("+---------------+\n");              // 1
     printf("|               |\n");              // 2
     printf("|               |\n");              // 3
@@ -144,7 +140,6 @@ void initMap()
 }
 void drawMap()
 {
-    pthread_mutex_lock(&mut);
     for (int i = 0; i < 15; i++)
     {
         printf("\e[%d;2H", i + 2);
@@ -166,13 +161,22 @@ void drawMap()
     }
     printf("\e[18;6H");
     printf("%s", (status == color ? "YOU  " : "ENEMY"));
-    pthread_mutex_unlock(&mut);
+}
+void* draw(void* p)
+{
+    while(1)
+    {
+        drawMap();
+        usleep(250);
+    }   
 }
 void work()
 {
     drawMap();
-    pthread_t pid;
-    pthread_create(&pid, NULL, keyBoardListener, NULL);
+    pthread_t pid_game;
+    pthread_t pid_ui;
+    pthread_create(&pid_game, NULL, keyBoardListener, NULL);
+    pthread_create(&pid_ui,NULL,draw,NULL);
     while (status != 0)
     {
         char buf[16];
@@ -184,7 +188,6 @@ void work()
                 // loop until press 'f'
             }
             _wzq.place(xloc, yloc, color);
-            drawMap();
             temp = buf[0] = color;
             buf[1] = xloc;
             buf[2] = yloc;
@@ -200,7 +203,6 @@ void work()
             yloc = buf[2];
             // 落子
             _wzq.place(xloc, yloc, temp);
-            drawMap();
             status = color;
         }
         int ret = _wzq.checkMap(buf[1], buf[2], temp);
