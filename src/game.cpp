@@ -47,6 +47,7 @@ int hostGame()
 
     // 监听
     listen(server_fd, 1);
+    printf("Waiting for another player ...\n");
 
     struct sockaddr_in client_addr;
     int addr_len = sizeof(client_addr);
@@ -67,6 +68,7 @@ int connectGame(const char *ip)
     int client_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
     // 连接
+    printf("Connecting ...\n");
     struct sockaddr_in myaddr;
     memset(&myaddr, 0, sizeof(sockaddr_in));
     myaddr.sin_family = AF_INET;
@@ -108,6 +110,9 @@ void *keyBoardListener(void *p)
                 // 更改状态
                 status = (status == 1 ? 2 : 1);
             }
+            break;
+        case 'q':
+            exit(0);
             break;
         default:
             break;
